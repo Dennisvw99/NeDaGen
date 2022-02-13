@@ -1,0 +1,260 @@
+---
+
+- name: Copy Router script
+  become: yes
+  template:
+    src: Routers.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/Routers.sh
+    mode: '0744'
+
+- name: Copy LAN Server script
+  become: yes
+  template:
+    src: LANservers.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/LANservers.sh
+    mode: '0744'
+
+- name: Copy DMZ Server script
+  become: yes
+  template:
+    src: DMZservers.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/DMZservers.sh
+    mode: '0744'
+
+- name: Copy WAN Server script
+  become: yes
+  template:
+    src: WANservers.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/WANservers.sh
+    mode: '0744'
+
+- name: Copy LAN Client scripts
+  become: yes
+  template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    mode: '0744'
+  loop:
+    - { src: 'LANclients/ADMINS.sh.j2', dest: '/etc/containerlab/{{ networkname }}/LANclient_scripts/ADMINS.sh' }
+    - { src: 'LANclients/DEVS.sh.j2', dest: '/etc/containerlab/{{ networkname }}/LANclient_scripts/DEVS.sh' }
+    - { src: 'LANclients/OPS.sh.j2', dest: '/etc/containerlab/{{ networkname }}/LANclient_scripts/OPS.sh' }
+    - { src: 'LANclients/Attacker.sh.j2', dest: '/etc/containerlab/{{ networkname }}/LANclient_scripts/Attacker.sh' }
+
+- name: Copy WAN Client scripts
+  become: yes
+  template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    mode: '0744'
+  loop:
+    - { src: 'WANclients/ADMINS.sh.j2', dest: '/etc/containerlab/{{ networkname }}/WANclient_scripts/ADMINS.sh' }
+    - { src: 'WANclients/DEVS.sh.j2', dest: '/etc/containerlab/{{ networkname }}/WANclient_scripts/DEVS.sh' }
+    - { src: 'WANclients/OPS.sh.j2', dest: '/etc/containerlab/{{ networkname }}/WANclient_scripts/OPS.sh' }
+    - { src: 'WANclients/enableVPN.sh.j2', dest: '/etc/containerlab/{{ networkname }}/WANclient_scripts/enableVPN.sh' }
+    - { src: 'WANclients/Attacker1.sh.j2', dest: '/etc/containerlab/{{ networkname }}/WANclient_scripts/Attacker1.sh' }
+    - { src: 'WANclients/Attacker2.sh.j2', dest: '/etc/containerlab/{{ networkname }}/WANclient_scripts/Attacker2.sh' }
+
+- name: Copy Bridge script
+  become: yes
+  template:
+    src: Bridges.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/Bridges.sh
+    mode: '0744'
+
+- name: Copy Cronjob LAN script
+  become: yes
+  template:
+    src: Cronjobs_LAN.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/Cronjobs_LAN.sh
+    mode: '0744'
+
+- name: Copy Cronjob WAN script
+  become: yes
+  template:
+    src: Cronjobs_WAN.sh.j2
+    dest: /etc/containerlab/{{ networkname }}/Cronjobs_WAN.sh
+    mode: '0744'
+
+- name: Deploy topology
+  become: yes
+  command: clab deploy --topo /etc/containerlab/{{ networkname }}/network.yml    
+
+### Running Scripts
+
+- name: Run Router script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/Routers.sh
+
+- name: Run Bridge script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/Bridges.sh
+
+- name: Run WAN Server script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANservers.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: WAN_server_script
+
+- name: Run LAN Server script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/LANservers.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: LAN_server_script
+
+- name: Run Attacker LAN script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/LANclient_scripts/Attacker.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: AttackerLAN_script
+
+- name: Run Attacker1 WAN script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANclient_scripts/Attacker1.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: Attacker1WAN_script
+
+- name: Run Attacker2 WAN script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANclient_scripts/Attacker2.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: Attacker2WAN_script
+
+- name: Run DMZ Server script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/DMZservers.sh
+  ignore_errors: True
+
+- name: Run LAN Client ADMIN script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/LANclient_scripts/ADMINS.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: LAN_client_ADMINS
+
+- name: Run LAN Client DEVS script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/LANclient_scripts/DEVS.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: LAN_client_DEVS
+
+- name: Run LAN Client OPS script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/LANclient_scripts/OPS.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: LAN_client_OPS
+
+- name: Check status LAN server async script
+  become: yes
+  async_status: jid={{ LAN_server_script.ansible_job_id }}
+  register: job_result_LAN_server
+  until: job_result_LAN_server.finished
+  retries: 500
+
+- name: Run WAN Client ADMIN script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANclient_scripts/ADMINS.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: WAN_client_ADMINS
+
+- name: Run WAN Client DEVS script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANclient_scripts/DEVS.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: WAN_client_DEVS
+
+- name: Run WAN Client OPS script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANclient_scripts/OPS.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: WAN_client_OPS
+
+- name: Check status LAN client ADMIN async script
+  become: yes
+  async_status: jid={{ LAN_client_ADMINS.ansible_job_id }}
+  register: job_result_LAN_ADMINS
+  until: job_result_LAN_ADMINS.finished
+  retries: 1000
+
+- name: Check status LAN client DEVS async script
+  become: yes
+  async_status: jid={{ LAN_client_DEVS.ansible_job_id }}
+  register: job_result_LAN_DEVS
+  until: job_result_LAN_DEVS.finished
+  retries: 1000
+
+- name: Check status LAN client OPS async script
+  become: yes
+  async_status: jid={{ LAN_client_OPS.ansible_job_id }}
+  register: job_result_LAN_OPS
+  until: job_result_LAN_OPS.finished
+  retries: 1000
+
+- name: Run ALS on LAN
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/profiles/ALS_profiles_LAN.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+  register: ALS_LAN_client_script
+
+- name: Check status WAN client ADMINS async script
+  become: yes
+  async_status: jid={{ WAN_client_ADMINS.ansible_job_id }}
+  register: job_result_WAN_ADMINS
+  until: job_result_WAN_ADMINS.finished
+  retries: 1000
+
+- name: Check status WAN client DEVS async script
+  become: yes
+  async_status: jid={{ WAN_client_DEVS.ansible_job_id }}
+  register: job_result_WAN_DEVS
+  until: job_result_WAN_DEVS.finished
+  retries: 1000
+
+- name: Check status WAN client OPS async script
+  become: yes
+  async_status: jid={{ WAN_client_OPS.ansible_job_id }}
+  register: job_result_WAN_OPS
+  until: job_result_WAN_OPS.finished
+  retries: 1000
+
+- name: Run WAN Client enableVPN script
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/WANclient_scripts/enableVPN.sh
+  ignore_errors: True
+
+- name: Run ALS on LAN
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/profiles/ALS_profiles_LAN.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+
+- name: Run ALS on WAN
+  become: yes
+  shell: /etc/containerlab/{{ networkname }}/profiles/ALS_profiles_WAN.sh
+  ignore_errors: True
+  async: 1000
+  poll: 0
+

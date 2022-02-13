@@ -1,0 +1,62 @@
+---
+
+- name: install tshark
+  become: yes
+  apt:
+    name: tshark
+    state: present
+    update_cache: yes
+  async: 1000
+  poll: 0
+  register: install_tshark
+
+- name: Copy Capture script
+  become: yes
+  template:
+    src: capture.sh.j2
+    dest: /etc/containerlab/captures/capture.sh
+
+- name: Change file permissions Capture script
+  become: yes
+  file:
+    path: /etc/containerlab/captures/capture.sh
+    mode: '0744'
+
+- name: Check status WAN server async script
+  become: yes
+  async_status: jid={{ WAN_server_script.ansible_job_id }}
+  register: job_result_WAN_server
+  until: job_result_WAN_server.finished
+  retries: 500
+
+- name: Check status attacker LAN async script
+  become: yes
+  async_status: jid={{ AttackerLAN_script.ansible_job_id }}
+  register: job_result_attackerLAN
+  until: job_result_attackerLAN.finished
+  retries: 500
+
+- name: Check status attacker1 WAN async script
+  become: yes
+  async_status: jid={{ Attacker1WAN_script.ansible_job_id }}
+  register: job_result_attacker1WAN
+  until: job_result_attacker1WAN.finished
+  retries: 500
+
+- name: Check status attacker2 WAN async script
+  become: yes
+  async_status: jid={{ Attacker2WAN_script.ansible_job_id }}
+  register: job_result_attacker2WAN
+  until: job_result_attacker2WAN.finished
+  retries: 500
+
+- name: Check status install tshark
+  become: yes
+  async_status: jid={{ install_tshark.ansible_job_id }}
+  register: job_result_tshark
+  until: job_result_tshark.finished
+  retries: 500
+
+- name: Run capture script after config scripts
+  become: yes
+  shell: nohup bash /etc/containerlab/captures/capture.sh </dev/null >/dev/null 2>&1 &
