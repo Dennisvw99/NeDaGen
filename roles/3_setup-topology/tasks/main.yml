@@ -140,12 +140,10 @@
     dest: /etc/containerlab/{{ networkname }}/ftp/conf.sh
     mode: 0644
 
-- name: Copy Log4j JDK Dependency
+- name: Download Log4j JDK Dependency
   become: yes
-  copy:
-    src: log4j/jdk-8u20-linux-x64.tar.gz
-    dest: /etc/containerlab/{{ networkname }}/log4j/jdk-8u20-linux-x64.tar.gz
-    mode: 0644
+  ansible.builtin.shell:
+    cmd: [[ ! -f jdk-8u20-linux-x64.tar.gz ]] && wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1pnMpPqdB7HkmraCc8PdNbSWBxnwvSlb1' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1pnMpPqdB7HkmraCc8PdNbSWBxnwvSlb1" -O /etc/containerlab/{{ networkname }}/log4j/jdk-8u20-linux-x64.tar.gz && rm -rf /tmp/cookies.txt  ansible.builtin.get_url:
 
 - name: Copy Log4j Vulnerable App
   become: yes
